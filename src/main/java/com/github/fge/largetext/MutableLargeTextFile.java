@@ -16,6 +16,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.stream.StreamSupport;
 
 import static com.google.common.collect.FluentIterable.from;
@@ -137,6 +139,7 @@ public class MutableLargeTextFile implements Appendable, CharSequence{
         // this method more-or-less delegates to the above method except that we delete source and replace it with our file.
         // this method will likely involve just a couple of calls to the java.nio.file.Files object,
         // could let it be the callers problem to implement it.
+        throw new UnsupportedOperationException();
     }
 
     // the more I think about these methods
@@ -181,9 +184,19 @@ public class MutableLargeTextFile implements Appendable, CharSequence{
 
     @Override
     public int length() {
-        //TODO nope, what if we have no changes? what if the range contains something like [0, 1) -> "longText" ?
-        // keep an int keysetLength and an int valuesLength?
-        return changes.span().upperEndpoint() + 1;
+
+        //TODO use fancy tree structure to do in sub linear time
+        int diff = changes.asMapOfRanges().entrySet().stream().reduce(
+                0,
+                (accum, range) -> {
+                    accum -= range.getKey().upperEndpoint() - range.getKey().lowerEndpoint();
+                    accum += range.getValue().length();
+                    return accum;
+                },
+                (l, r) -> l + r
+        );
+
+        return source.length() + diff;
     }
 
     @Override
